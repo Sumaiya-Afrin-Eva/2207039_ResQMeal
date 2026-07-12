@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use App\Models\FoodRequest;
 use App\Models\Donation;
 use App\Models\DonorResponse;
@@ -13,10 +14,39 @@ class FoodRequestController extends Controller
     public function create(Request $request)
     {
         $donation = null;
+        $weather = null;
         if ($request->has('donation_id')) {
             $donation = Donation::find($request->donation_id);
+            if ($donation) {
+                $donor = \App\Models\Donor::find($donation->donor_id);
+                $location = $donor && $donor->city ? $donor->city : 'Dhaka';
+                
+                try {
+                    $apiKey = env('OPENWEATHER_API_KEY');
+                    if ($apiKey) {
+                        $client = new \GuzzleHttp\Client(['timeout' => 5]);
+                        
+                        // Step 1: Geocoding API (Just like the lab tutorial)
+                        $geoUrl = "http://api.openweathermap.org/geo/1.0/direct?q=" . urlencode($location) . "&limit=1&appid={$apiKey}";
+                        $geoResponse = $client->get($geoUrl);
+                        $geoData = json_decode($geoResponse->getBody(), true);
+                        
+                        if (!empty($geoData)) {
+                            $latitude = $geoData[0]['lat'];
+                            $longitude = $geoData[0]['lon'];
+                            
+                            // Step 2: Weather API using coordinates
+                            $weatherUrl = "https://api.openweathermap.org/data/2.5/weather?lat={$latitude}&lon={$longitude}&appid={$apiKey}&units=metric";
+                            $weatherResponse = $client->get($weatherUrl);
+                            $weather = json_decode($weatherResponse->getBody(), true);
+                        }
+                    }
+                } catch (\Exception $e) {
+                    \Illuminate\Support\Facades\Log::error('Weather API failed: ' . $e->getMessage());
+                }
+            }
         }
-        return view('request', compact('donation'));
+        return view('request', compact('donation', 'weather'));
     }
 
     /** Store a new food request in the database */
@@ -43,7 +73,9 @@ class FoodRequestController extends Controller
         ]);
 
         $validated['status'] = 'pending';
-        FoodRequest::create($validated);
+        $foodRequest = FoodRequest::create($validated);
+
+
 
         return response()->json([
             'success' => true,
@@ -104,6 +136,8 @@ class FoodRequestController extends Controller
             'message'         => null
         ]);
 
+
+
         return response()->json([
             'success' => true,
             'message' => 'Request approved successfully.'
@@ -128,9 +162,14 @@ class FoodRequestController extends Controller
             'message'         => null
         ]);
 
+
+
         return response()->json([
             'success' => true,
             'message' => 'Request rejected successfully.'
         ]);
     }
+
+
 }
+
