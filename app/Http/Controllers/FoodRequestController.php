@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Log;
 use App\Models\FoodRequest;
 use App\Models\Donation;
 use App\Models\DonorResponse;
@@ -44,20 +43,7 @@ class FoodRequestController extends Controller
         ]);
 
         $validated['status'] = 'pending';
-        $foodRequest = FoodRequest::create($validated);
-
-        if (!empty($validated['donation_id'])) {
-            $donation = Donation::find($validated['donation_id']);
-            if ($donation && $donation->donor_id) {
-                $donor = \App\Models\Donor::find($donation->donor_id);
-                if ($donor && $donor->email) {
-                    $donorName = trim($donor->first_name . ' ' . $donor->last_name);
-                    $subject = 'New Food Request Received!';
-                    $content = "<p>Hello {$donorName},</p><p>You have received a new food request for your donation <b>{$donation->food_name}</b> from <b>{$foodRequest->requester_name}</b>.</p><p>Please log in to your dashboard to review it.</p>";
-                    $this->sendEmailNotification($donor->email, $donorName, $subject, $content);
-                }
-            }
-        }
+        FoodRequest::create($validated);
 
         return response()->json([
             'success' => true,
@@ -118,14 +104,6 @@ class FoodRequestController extends Controller
             'message'         => null
         ]);
 
-        if ($foodReq->requester_email) {
-            $donation = Donation::find($foodReq->donation_id);
-            $foodName = $donation ? $donation->food_name : 'Food Donation';
-            $subject = 'Food Request Approved!';
-            $content = "<p>Hello {$foodReq->requester_name},</p><p>Good news! Your request for <b>{$foodName}</b> has been approved by the donor.</p><p>Please proceed to coordinate the pickup.</p>";
-            $this->sendEmailNotification($foodReq->requester_email, $foodReq->requester_name, $subject, $content);
-        }
-
         return response()->json([
             'success' => true,
             'message' => 'Request approved successfully.'
@@ -150,51 +128,9 @@ class FoodRequestController extends Controller
             'message'         => null
         ]);
 
-        if ($foodReq->requester_email) {
-            $donation = Donation::find($foodReq->donation_id);
-            $foodName = $donation ? $donation->food_name : 'Food Donation';
-            $subject = 'Food Request Update';
-            $content = "<p>Hello {$foodReq->requester_name},</p><p>We're sorry, but your request for <b>{$foodName}</b> could not be approved at this time.</p><p>Please check the live feed for other available donations.</p>";
-            $this->sendEmailNotification($foodReq->requester_email, $foodReq->requester_name, $subject, $content);
-        }
-
         return response()->json([
             'success' => true,
             'message' => 'Request rejected successfully.'
         ]);
     }
-
-    private function sendEmailNotification($toEmail, $toName, $subject, $content)
-    {
-        try {
-            $apiKey = env('BREVO_API_KEY');
-            if (!$apiKey) return;
-
-            $client = new \GuzzleHttp\Client();
-            $client->post('https://api.brevo.com/v3/smtp/email', [
-                'headers' => [
-                    'api-key' => $apiKey,
-                    'Content-Type' => 'application/json',
-                    'Accept' => 'application/json',
-                ],
-                'json' => [
-                    'sender' => [
-                        'name' => 'ResQMeal Notifications',
-                        'email' => env('BREVO_SENDER_EMAIL', 'noreply@resqmeal.org')
-                    ],
-                    'to' => [
-                        [
-                            'email' => $toEmail,
-                            'name' => $toName
-                        ]
-                    ],
-                    'subject' => $subject,
-                    'htmlContent' => $content
-                ]
-            ]);
-        } catch (\Exception $e) {
-            Log::error('Email sending failed: ' . $e->getMessage());
-        }
-    }
 }
-
