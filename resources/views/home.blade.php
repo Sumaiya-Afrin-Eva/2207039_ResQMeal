@@ -14,7 +14,7 @@
   <!-- ───────────────────── NAV ───────────────────── -->
   <nav class="nav" id="navbar">
     <div class="nav-inner">
-      <a href="#" class="nav-logo">
+      <a href="/" class="nav-logo">
         <span class="logo-icon">🥗</span>
         <span class="logo-text">ResQ<span class="logo-accent">Meal</span></span>
       </a>
@@ -28,8 +28,8 @@
       </ul>
 
       <div class="nav-actions">
-        <a href="#" class="btn-ghost">Log In</a>
-        <a href="#" class="btn-primary">Donate Food</a>
+        <a href="/login" class="btn-ghost">Log In</a>
+        <a href="/donate" class="btn-primary">Donate Food</a>
       </div>
 
       <button class="hamburger" id="hamburger" aria-label="Open menu">
@@ -46,7 +46,7 @@
       <li><a href="#analytics">Analytics</a></li>
       <li><a href="#trust">Trust Score</a></li>
       <li><a href="#alerts">Alerts</a></li>
-      <li><a href="#" class="btn-primary full-width">Donate Food</a></li>
+      <li><a href="/donate" class="btn-primary full-width">Donate Food</a></li>
     </ul>
   </div>
 
@@ -73,8 +73,8 @@
       </p>
 
       <div class="hero-cta">
-        <a href="#" class="btn-primary large">Start Donating</a>
-        <a href="#" class="btn-outline large">Request Food Aid</a>
+        <a href="/login" class="btn-primary large">Start Donating</a>
+        <a href="#live-feed" class="btn-outline large">Request Food Aid</a>
       </div>
 
       <!-- Rescue Ticker -->
@@ -82,13 +82,17 @@
         <span class="ticker-label">RESCUE TICKER</span>
         <div class="ticker-track">
           <div class="ticker-items">
-            <span>🍱 45 kg of biryani rescued — Dhaka North &nbsp;&nbsp;&nbsp;•&nbsp;&nbsp;&nbsp;</span>
-            <span>🥦 12 kg vegetables claimed by Green Hope NGO &nbsp;&nbsp;&nbsp;•&nbsp;&nbsp;&nbsp;</span>
-            <span>🍞 80 loaves of bread — pickup in 22 min &nbsp;&nbsp;&nbsp;•&nbsp;&nbsp;&nbsp;</span>
-            <span>🍛 Restaurant Spice Garden donated 60 meals &nbsp;&nbsp;&nbsp;•&nbsp;&nbsp;&nbsp;</span>
-            <span>⚡ Emergency alert cleared — Khulna Zone 3 &nbsp;&nbsp;&nbsp;•&nbsp;&nbsp;&nbsp;</span>
-            <span>🍱 45 kg of biryani rescued — Dhaka North &nbsp;&nbsp;&nbsp;•&nbsp;&nbsp;&nbsp;</span>
-            <span>🥦 12 kg vegetables claimed by Green Hope NGO &nbsp;&nbsp;&nbsp;•&nbsp;&nbsp;&nbsp;</span>
+            @forelse($tickerEvents as $event)
+              <span>{{ $event['emoji'] ?? '🍱' }} {{ $event['text'] }} &nbsp;&nbsp;&nbsp;•&nbsp;&nbsp;&nbsp;</span>
+            @empty
+              <span>No recent updates &nbsp;&nbsp;&nbsp;•&nbsp;&nbsp;&nbsp;</span>
+            @endforelse
+            <!-- Duplicate for seamless infinite scroll animation -->
+            @forelse($tickerEvents as $event)
+              <span>{{ $event['emoji'] ?? '🍱' }} {{ $event['text'] }} &nbsp;&nbsp;&nbsp;•&nbsp;&nbsp;&nbsp;</span>
+            @empty
+              <span>No recent updates &nbsp;&nbsp;&nbsp;•&nbsp;&nbsp;&nbsp;</span>
+            @endforelse
           </div>
         </div>
       </div>
@@ -97,22 +101,22 @@
     <!-- Hero Stats Strip -->
     <div class="hero-stats">
       <div class="stat-item">
-        <span class="stat-num" data-target="182400">0</span>
-        <span class="stat-label">Meals Rescued</span>
+        <span class="stat-num" data-target="{{ $mealsApproved }}">0</span>
+        <span class="stat-label">Meals Approved</span>
       </div>
       <div class="stat-divider"></div>
       <div class="stat-item">
-        <span class="stat-num" data-target="640">0</span>
+        <span class="stat-num" data-target="{{ $activeDonors }}">0</span>
         <span class="stat-label">Active Donors</span>
       </div>
       <div class="stat-divider"></div>
       <div class="stat-item">
-        <span class="stat-num" data-target="124">0</span>
-        <span class="stat-label">NGO Partners</span>
+        <span class="stat-num" data-target="{{ $activeNGOs }}">0</span>
+        <span class="stat-label">Active NGO/Volunteer</span>
       </div>
       <div class="stat-divider"></div>
       <div class="stat-item">
-        <span class="stat-num" data-target="98">0</span>
+        <span class="stat-num" data-target="{{ $pickupRate }}">0</span>
         <span class="stat-label">% Pickup Rate</span>
       </div>
     </div>
@@ -139,18 +143,31 @@
           <p>Real-time countdown timers on every food listing prioritize urgent rescues before spoilage.</p>
           <!-- Mini countdown demo -->
           <div class="countdown-demo">
-            <div class="cd-item critical">
-              <span class="cd-label">Bakery Bread — 2 boxes</span>
-              <span class="cd-time">00:47:13</span>
-            </div>
-            <div class="cd-item warning">
-              <span class="cd-label">Cooked Rice — 8 kg</span>
-              <span class="cd-time">02:15:00</span>
-            </div>
-            <div class="cd-item safe">
-              <span class="cd-label">Canned Lentils — 24 units</span>
-              <span class="cd-time">06:00:00</span>
-            </div>
+            @foreach($donations->take(3) as $donation)
+              @php
+                $cdExpiry  = \Carbon\Carbon::parse($donation->expiry);
+                $cdSeconds = $cdExpiry->isFuture() ? (int) now()->diffInSeconds($cdExpiry) : 0;
+                $cdH = floor($cdSeconds / 3600);
+                $cdM = floor(($cdSeconds % 3600) / 60);
+                $cdS = $cdSeconds % 60;
+                $cdTime = sprintf('%02d:%02d:%02d', $cdH, $cdM, $cdS);
+                $cdClass = $cdSeconds < 3600 ? 'critical' : ($cdSeconds < 10800 ? 'warning' : 'safe');
+              @endphp
+              @if($cdExpiry->isFuture())
+                <div class="cd-item {{ $cdClass }}">
+                  <span class="cd-label">{{ $donation->food_name }} — {{ $donation->quantity }} {{ $donation->unit }}</span>
+                  <span class="cd-time" data-expiry="{{ $cdExpiry->toIso8601String() }}">{{ $cdTime }}</span>
+                </div>
+              @endif
+            @endforeach
+
+
+            @if($donations->filter(fn($d) => \Carbon\Carbon::parse($d->expiry)->isFuture())->isEmpty())
+              <div class="cd-item safe">
+                <span class="cd-label">No active donations yet — be the first!</span>
+                <span class="cd-time">--:--:--</span>
+              </div>
+            @endif
           </div>
         </div>
 
@@ -232,101 +249,72 @@
 
       <div class="feed-grid">
 
-        <div class="feed-card">
-          <div class="feed-card-top">
-            <span class="food-category cat-cooked">Cooked</span>
-            <span class="urgency-badge urgent">⚡ Critical</span>
-          </div>
-          <h4 class="food-title">Mixed Biryani — 30 portions</h4>
-          <p class="food-donor">📍 Hotel Landmark, Khulna</p>
-          <div class="food-meta">
-            <span>🕐 Expires in <strong>00:54</strong></span>
-            <span>👥 Serves ~30 people</span>
-          </div>
-          <div class="food-progress">
-            <div class="progress-bar" style="--pct:75%"></div>
-          </div>
-          <p class="progress-note">3 of 4 portions claimed</p>
-          <button class="btn-claim">Claim Pickup</button>
-        </div>
+        @foreach($donations as $donation)
+          @php
+            $expiryCarbon    = \Carbon\Carbon::parse($donation->expiry);
+            $remainingSeconds = $expiryCarbon->isFuture()
+                                  ? (int) now()->diffInSeconds($expiryCarbon)
+                                  : 0;
+            $h = floor($remainingSeconds / 3600);
+            $m = floor(($remainingSeconds % 3600) / 60);
+            $s = $remainingSeconds % 60;
+            $timeStr = sprintf('%02d:%02d:%02d', $h, $m, $s);
 
-        <div class="feed-card">
-          <div class="feed-card-top">
-            <span class="food-category cat-raw">Raw</span>
-            <span class="urgency-badge moderate">🕐 Moderate</span>
-          </div>
-          <h4 class="food-title">Fresh Vegetables — 20 kg</h4>
-          <p class="food-donor">📍 Agora Supermarket, Dhaka</p>
-          <div class="food-meta">
-            <span>🕐 Expires in <strong>04:30</strong></span>
-            <span>👥 Serves ~50 people</span>
-          </div>
-          <div class="food-progress">
-            <div class="progress-bar" style="--pct:20%"></div>
-          </div>
-          <p class="progress-note">1 of 5 batches claimed</p>
-          <button class="btn-claim">Claim Pickup</button>
-        </div>
+            $urgencyClass = 'safe';
+            $urgencyText  = '✅ Available';
+            if ($remainingSeconds < 3600) {
+                $urgencyClass = 'urgent';
+                $urgencyText  = '⚡ Critical';
+            } elseif ($remainingSeconds < 10800) {
+                $urgencyClass = 'moderate';
+                $urgencyText  = '🕐 Moderate';
+            }
 
-        <div class="feed-card">
-          <div class="feed-card-top">
-            <span class="food-category cat-packaged">Packaged</span>
-            <span class="urgency-badge safe">✅ Available</span>
-          </div>
-          <h4 class="food-title">Sealed Canned Goods — 48 units</h4>
-          <p class="food-donor">📍 Meena Bazar, Chittagong</p>
-          <div class="food-meta">
-            <span>🕐 Expires in <strong>12:00</strong></span>
-            <span>👥 Serves ~48 people</span>
-          </div>
-          <div class="food-progress">
-            <div class="progress-bar" style="--pct:0%"></div>
-          </div>
-          <p class="progress-note">Unclaimed — act now</p>
-          <button class="btn-claim">Claim Pickup</button>
-        </div>
+            $catClass = 'cat-cooked';
+            if (in_array($donation->category, ['raw', 'beverages'])) {
+                $catClass = 'cat-raw';
+            } elseif ($donation->category === 'packaged') {
+                $catClass = 'cat-packaged';
+            }
+          @endphp
+          @if($expiryCarbon->isFuture())
+            <div class="feed-card" data-category="{{ $donation->category }}">
+              <div class="feed-card-top">
+                <span class="food-category {{ $catClass }}">{{ ucfirst($donation->category) }}</span>
+                <span class="urgency-badge {{ $urgencyClass }}">{{ $urgencyText }}</span>
+              </div>
+              <h4 class="food-title">{{ $donation->food_name }} — {{ $donation->quantity }} {{ $donation->unit }}</h4>
+              <p class="food-donor">📍 {{ $donation->donor_name ?? 'Donor' }}, {{ $donation->pickup_address }}</p>
+              <div class="food-meta">
+                <span>🕐 Expires in <strong class="live-timer" data-expiry="{{ $expiryCarbon->toIso8601String() }}">{{ $timeStr }}</strong></span>
+                <span>👥 Serves ~{{ $donation->serves }} people</span>
+              </div>
+              <div class="food-progress">
+                <div class="progress-bar" style="--pct:0%"></div>
+              </div>
+              <p class="progress-note">Unclaimed — act now</p>
+              <div style="display:flex; gap:10px; margin-top:16px;">
+                <a href="/donation/{{ $donation->id }}" class="btn-claim" style="flex:1;text-align:center;text-decoration:none;background:rgba(255,255,255,0.08);color:#e2e8f0;border:1px solid rgba(255,255,255,0.1);">View Details</a>
+                <a href="/ngo-login?donation_id={{ $donation->id }}" class="btn-claim" style="flex:1;text-align:center;text-decoration:none">Request Food</a>
+              </div>
+            </div>
+          @endif
+        @endforeach
 
-        <div class="feed-card">
-          <div class="feed-card-top">
-            <span class="food-category cat-cooked">Cooked</span>
-            <span class="urgency-badge urgent">⚡ Critical</span>
+        @if($donations->filter(fn($d) => \Carbon\Carbon::parse($d->expiry)->isFuture())->isEmpty())
+          <div class="feed-empty" style="grid-column:1/-1;text-align:center;padding:3rem 1rem;opacity:.7">
+            <div style="font-size:3rem;margin-bottom:1rem">🍽️</div>
+            <h4 style="color:#fff;margin-bottom:.5rem">No active donations right now</h4>
+            <p style="color:rgba(255,255,255,.6);margin-bottom:1.5rem">Be the first to post one — it takes under 60 seconds.</p>
+            <a href="/donate" class="btn-primary">Post a Donation</a>
           </div>
-          <h4 class="food-title">Dal & Roti — 60 plates</h4>
-          <p class="food-donor">📍 Community Kitchen, Rajshahi</p>
-          <div class="food-meta">
-            <span>🕐 Expires in <strong>01:12</strong></span>
-            <span>👥 Serves ~60 people</span>
-          </div>
-          <div class="food-progress">
-            <div class="progress-bar" style="--pct:50%"></div>
-          </div>
-          <p class="progress-note">2 of 4 batches claimed</p>
-          <button class="btn-claim">Claim Pickup</button>
-        </div>
-
-        <div class="feed-card">
-          <div class="feed-card-top">
-            <span class="food-category cat-raw">Raw</span>
-            <span class="urgency-badge moderate">🕐 Moderate</span>
-          </div>
-          <h4 class="food-title">Bakery Bread — 5 trays</h4>
-          <p class="food-donor">📍 French Loaf Bakery, Sylhet</p>
-          <div class="food-meta">
-            <span>🕐 Expires in <strong>03:45</strong></span>
-            <span>👥 Serves ~40 people</span>
-          </div>
-          <div class="food-progress">
-            <div class="progress-bar" style="--pct:40%"></div>
-          </div>
-          <p class="progress-note">2 of 5 trays claimed</p>
-          <button class="btn-claim">Claim Pickup</button>
-        </div>
+        @endif
 
         <div class="feed-card feed-card-post">
           <div class="post-icon">➕</div>
           <h4>Have surplus food?</h4>
           <p>Post a donation in under 60 seconds. We'll handle the rest.</p>
-          <a href="#" class="btn-primary">Post a Donation</a>
+          <a href="/donate" class="btn-primary">Post a Donation</a>
         </div>
 
       </div>
@@ -410,59 +398,32 @@
       <div class="analytics-grid">
 
         <div class="chart-card">
-          <h4 class="chart-title">Weekly Rescue Volume (kg)</h4>
+          <h4 class="chart-title">Weekly Added Donations</h4>
           <div class="bar-chart">
+            @foreach($chartData as $data)
             <div class="bar-group">
-              <div class="bar" style="--h:55%"><span class="bar-val">1.2k</span></div>
-              <span class="bar-day">Mon</span>
+              <div class="bar {{ $data['is_today'] ? 'bar--today' : '' }}" style="--h:{{ $data['height'] }}%">
+                <span class="bar-val">{{ $data['label'] }}</span>
+              </div>
+              <span class="bar-day">{{ $data['day'] }}</span>
             </div>
-            <div class="bar-group">
-              <div class="bar" style="--h:70%"><span class="bar-val">1.6k</span></div>
-              <span class="bar-day">Tue</span>
-            </div>
-            <div class="bar-group">
-              <div class="bar" style="--h:45%"><span class="bar-val">980</span></div>
-              <span class="bar-day">Wed</span>
-            </div>
-            <div class="bar-group">
-              <div class="bar" style="--h:85%"><span class="bar-val">1.9k</span></div>
-              <span class="bar-day">Thu</span>
-            </div>
-            <div class="bar-group">
-              <div class="bar" style="--h:100%"><span class="bar-val">2.2k</span></div>
-              <span class="bar-day">Fri</span>
-            </div>
-            <div class="bar-group">
-              <div class="bar" style="--h:60%"><span class="bar-val">1.3k</span></div>
-              <span class="bar-day">Sat</span>
-            </div>
-            <div class="bar-group">
-              <div class="bar bar--today" style="--h:78%"><span class="bar-val">1.7k</span></div>
-              <span class="bar-day">Today</span>
-            </div>
+            @endforeach
           </div>
         </div>
 
         <div class="analytics-side">
           <div class="metric-card">
-            <span class="metric-icon">♻️</span>
+            <span class="metric-icon">🗑️</span>
             <div>
-              <span class="metric-value">4.2 T</span>
-              <span class="metric-label">CO₂ emissions prevented this month</span>
+              <span class="metric-value">{{ $wastedFood ?? 0 }}</span>
+              <span class="metric-label">Food donations wasted (Expired & Unrescued)</span>
             </div>
           </div>
           <div class="metric-card">
-            <span class="metric-icon">🥘</span>
+            <span class="metric-icon">💚</span>
             <div>
-              <span class="metric-value">12,480</span>
-              <span class="metric-label">Meals rescued this week</span>
-            </div>
-          </div>
-          <div class="metric-card">
-            <span class="metric-icon">⏱️</span>
-            <div>
-              <span class="metric-value">18 min</span>
-              <span class="metric-label">Average food-to-pickup time</span>
+              <span class="metric-value">{{ $rescuedFood ?? 0 }}</span>
+              <span class="metric-label">Food requests approved</span>
             </div>
           </div>
 
@@ -470,16 +431,16 @@
             <h4>Food by Category</h4>
             <div class="donut-chart">
               <svg viewBox="0 0 120 120">
-                <circle cx="60" cy="60" r="48" fill="none" stroke="#0B3D2E" stroke-width="20" />
-                <circle cx="60" cy="60" r="48" fill="none" stroke="#F5A623" stroke-width="20" stroke-dasharray="90 211" stroke-dashoffset="-30" />
-                <circle cx="60" cy="60" r="48" fill="none" stroke="#E8614A" stroke-width="20" stroke-dasharray="50 251" stroke-dashoffset="-120" />
-                <circle cx="60" cy="60" r="48" fill="none" stroke="#4A7C59" stroke-width="20" stroke-dasharray="40 261" stroke-dashoffset="-170" />
+                @foreach($categoryStats as $stat)
+                  @if($stat['percentage'] > 0)
+                    <circle cx="60" cy="60" r="48" fill="none" stroke="{{ $stat['color'] }}" stroke-width="20" stroke-dasharray="{{ $stat['dasharray'] }}" stroke-dashoffset="{{ $stat['offset'] }}" />
+                  @endif
+                @endforeach
               </svg>
               <div class="donut-legend">
-                <span class="legend-item"><em style="background:#F5A623"></em>Cooked 44%</span>
-                <span class="legend-item"><em style="background:#0B3D2E"></em>Raw 31%</span>
-                <span class="legend-item"><em style="background:#E8614A"></em>Packaged 15%</span>
-                <span class="legend-item"><em style="background:#4A7C59"></em>Bakery 10%</span>
+                @foreach($categoryStats as $stat)
+                  <span class="legend-item"><em style="background:{{ $stat['color'] }}"></em>{{ $stat['name'] }} {{ $stat['percentage'] }}%</span>
+                @endforeach
               </div>
             </div>
           </div>
@@ -650,10 +611,10 @@
         <div class="cta-glow"></div>
         <span class="section-tag light">Join the Movement</span>
         <h2>Stop Food Waste.<br />Start Saving Lives.</h2>
-        <p>Join 640+ donors, 124 NGO partners, and thousands of volunteers already rescuing meals every day.</p>
+        <p>Join {{ $activeDonors }} donors and {{ $activeNGOs }} NGO/volunteers already rescuing meals every day.</p>
         <div class="cta-btns">
-          <a href="#" class="btn-primary large">Donate Food Today</a>
-          <a href="#" class="btn-outline-light large">Join as Volunteer</a>
+          <a href="/donate" class="btn-primary large">Donate Food Today</a>
+          <a href="/ngo-login" class="btn-outline-light large">Request Food</a>
         </div>
       </div>
     </div>
@@ -664,7 +625,7 @@
     <div class="container">
       <div class="footer-top">
         <div class="footer-brand">
-          <a href="#" class="nav-logo">
+          <a href="/" class="nav-logo">
             <span class="logo-icon">🥗</span>
             <span class="logo-text">ResQ<span class="logo-accent">Meal</span></span>
           </a>
@@ -758,24 +719,78 @@
     }, { threshold: 0.5 });
     counters.forEach(c => observer.observe(c));
 
-    // ── Countdown timer animation (demo)
-    function updateCountdowns() {
-      document.querySelectorAll('.cd-time').forEach(el => {
-        const parts = el.textContent.split(':').map(Number);
-        let [h, m, s] = parts;
-        if (s > 0) s--;
-        else if (m > 0) { m--; s = 59; }
-        else if (h > 0) { h--; m = 59; s = 59; }
+    // ── Live countdown timers (real, driven by expiry timestamps)
+    function updateLiveTimers() {
+      document.querySelectorAll('.live-timer[data-expiry]').forEach(el => {
+        const expiry = new Date(el.dataset.expiry);
+        const diff = Math.max(0, Math.floor((expiry - Date.now()) / 1000));
+        const h = Math.floor(diff / 3600);
+        const m = Math.floor((diff % 3600) / 60);
+        const s = diff % 60;
         el.textContent = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+
+        // Update urgency badge colour dynamically
+        const card = el.closest('.feed-card');
+        if (card) {
+          const badge = card.querySelector('.urgency-badge');
+          if (badge) {
+            if (diff <= 0) {
+              card.remove();
+            } else if (diff < 3600) {
+              badge.textContent = '⚡ Critical';
+              badge.className = 'urgency-badge urgent';
+            } else if (diff < 10800) {
+              badge.textContent = '🕐 Moderate';
+              badge.className = 'urgency-badge moderate';
+            } else {
+              badge.textContent = '✅ Available';
+              badge.className = 'urgency-badge safe';
+            }
+          }
+        }
+      });
+
+      // Also tick the feature-section countdown items
+      document.querySelectorAll('.cd-time').forEach(el => {
+        const expiryStr = el.dataset.expiry;
+        if (!expiryStr) return;
+        const expiry = new Date(expiryStr);
+        const diff = Math.floor((expiry - Date.now()) / 1000);
+        
+        if (diff <= 0) {
+          const cdItem = el.closest('.cd-item');
+          if (cdItem) cdItem.remove();
+          return;
+        }
+
+        const h = Math.floor(diff / 3600);
+        const m = Math.floor((diff % 3600) / 60);
+        const s = diff % 60;
+        el.textContent = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+        
+        const cdItem = el.closest('.cd-item');
+        if (cdItem) {
+            cdItem.className = 'cd-item ' + (diff < 3600 ? 'critical' : (diff < 10800 ? 'warning' : 'safe'));
+        }
       });
     }
-    setInterval(updateCountdowns, 1000);
+    setInterval(updateLiveTimers, 1000);
+    updateLiveTimers();
 
-    // ── Filter buttons (UI only)
+    // ── Filter buttons (real category filtering)
     document.querySelectorAll('.filter-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
+        const filter = btn.textContent.trim().toLowerCase();
+        document.querySelectorAll('.feed-card:not(.feed-card-post)').forEach(card => {
+          if (filter === 'all') {
+            card.style.display = '';
+          } else {
+            const cat = (card.dataset.category || '').toLowerCase();
+            card.style.display = (cat === filter || cat.includes(filter)) ? '' : 'none';
+          }
+        });
       });
     });
 
