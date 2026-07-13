@@ -4,27 +4,17 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\DonationController;
 use App\Http\Controllers\NGOVolunteerController;
 use App\Http\Controllers\FoodRequestController;
-
+use App\Http\Controllers\PageController;
 use App\Http\Controllers\DonorController;
 
-Route::get('/', function () {
-    $donations = \App\Models\Donation::where('expiry', '>', now())
-                    ->latest()
-                    ->get();
-    return view('home', compact('donations'));
-});
+Route::get('/', [PageController::class, 'home']);
 
-Route::get('/login', function () {
-    return view('login');
-});
 
+Route::get('/login', [PageController::class, 'donorLogin']);
 Route::post('/donor-login-check', [DonorController::class, 'login'])->name('donor.login');
 Route::post('/donor-register',    [DonorController::class, 'store'])->name('donor.register');
 
-Route::get('/ngo-login', function () {
-    return view('ngo-login');
-});
-
+Route::get('/ngo-login', [PageController::class, 'ngoLogin']);
 Route::post('/ngo-login-check', [NGOVolunteerController::class, 'login'])->name('ngo.login');
 Route::post('/ngo-register',    [NGOVolunteerController::class, 'store'])->name('ngo.register');
 
