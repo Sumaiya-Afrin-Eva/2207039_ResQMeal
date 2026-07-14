@@ -30,5 +30,17 @@ class Donation extends Model
         'visibility',
         'emergency',
         'donor_name',
+        'donor_id',
+        'image_path',
     ];
+
+    public function donor()
+    {
+        return $this->belongsTo(Donor::class, 'donor_id');
+    }
+
+    public function foodRequests()
+    {
+        return $this->hasMany(FoodRequest::class, 'donation_id');
+    }
 }

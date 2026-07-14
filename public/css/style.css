@@ -13,6 +13,7 @@
 
 /* ── Reset & Base ─────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+[hidden] { display: none !important; }
 
 :root {
   --green-deep: #0B3D2E;
@@ -883,8 +884,10 @@ h4 { font-size: 1.05rem; font-weight: 600; }
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: flex-end;
   gap: 8px;
   flex: 1;
+  height: 100%;
 }
 .bar {
   width: 100%;

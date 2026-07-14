@@ -6,6 +6,7 @@ use App\Http\Controllers\NGOVolunteerController;
 use App\Http\Controllers\FoodRequestController;
 use App\Http\Controllers\PageController;
 use App\Http\Controllers\DonorController;
+use App\Http\Controllers\ProfileController;
 
 Route::get('/', [PageController::class, 'home']);
 
@@ -34,6 +35,7 @@ Route::get('/donor-requests', function () {
 });
 
 Route::get('/api/donations/history', [DonationController::class, 'history']);
+Route::get('/api/donations/{id}/matched-ngos', [DonationController::class, 'matchedNgos']);
 Route::get('/api/donations/{id}', [DonationController::class, 'apiShow']);
 Route::put('/api/donations/{id}', [DonationController::class, 'update']);
 Route::delete('/api/donations/{id}', [DonationController::class, 'destroy']);
@@ -49,4 +51,47 @@ Route::post('/request', [FoodRequestController::class, 'store'])->name('food.req
 
 Route::get('/ngo-requests', function () {
     return view('ngo-requests');
+});
+
+// Admin Dashboard Routes (Breeze Authentication)
+Route::prefix('admin')->group(function () {
+    Route::get('/dashboard', function () {
+        $totalDonors = \App\Models\Donor::count();
+        $totalNGOs = \App\Models\NGOVolunteer::count();
+        $totalDonations = \App\Models\Donation::count();
+        $totalRequests = \App\Models\FoodRequest::count();
+        
+        return view('dashboard', compact('totalDonors', 'totalNGOs', 'totalDonations', 'totalRequests'));
+    })->middleware(['auth', 'verified'])->name('dashboard');
+
+    Route::middleware('auth')->group(function () {
+        Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
+        Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
+        Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+        
+        Route::get('/donors', [App\Http\Controllers\Admin\DonorController::class, 'index'])->name('admin.donors');
+        Route::get('/donors/create', [App\Http\Controllers\Admin\DonorController::class, 'create'])->name('admin.donors.create');
+        Route::post('/donors', [App\Http\Controllers\Admin\DonorController::class, 'store'])->name('admin.donors.store');
+        Route::get('/donors/{id}/edit', [App\Http\Controllers\Admin\DonorController::class, 'edit'])->name('admin.donors.edit');
+        Route::put('/donors/{id}', [App\Http\Controllers\Admin\DonorController::class, 'update'])->name('admin.donors.update');
+        Route::delete('/donors/{id}', [App\Http\Controllers\Admin\DonorController::class, 'destroy'])->name('admin.donors.destroy');
+        Route::get('/ngos', [App\Http\Controllers\Admin\NGOController::class, 'index'])->name('admin.ngos');
+        Route::get('/ngos/create', [App\Http\Controllers\Admin\NGOController::class, 'create'])->name('admin.ngos.create');
+        Route::post('/ngos', [App\Http\Controllers\Admin\NGOController::class, 'store'])->name('admin.ngos.store');
+        Route::get('/ngos/{id}/edit', [App\Http\Controllers\Admin\NGOController::class, 'edit'])->name('admin.ngos.edit');
+        Route::put('/ngos/{id}', [App\Http\Controllers\Admin\NGOController::class, 'update'])->name('admin.ngos.update');
+        Route::delete('/ngos/{id}', [App\Http\Controllers\Admin\NGOController::class, 'destroy'])->name('admin.ngos.destroy');
+        Route::get('/donations', [App\Http\Controllers\Admin\DonationController::class, 'index'])->name('admin.donations');
+        Route::get('/donations/create', [App\Http\Controllers\Admin\DonationController::class, 'create'])->name('admin.donations.create');
+        Route::get('/donations/check-donor/{id}', [App\Http\Controllers\Admin\DonationController::class, 'checkDonor'])->name('admin.donations.check_donor');
+        Route::post('/donations', [App\Http\Controllers\Admin\DonationController::class, 'store'])->name('admin.donations.store');
+        Route::get('/donations/{id}/edit', [App\Http\Controllers\Admin\DonationController::class, 'edit'])->name('admin.donations.edit');
+        Route::put('/donations/{id}', [App\Http\Controllers\Admin\DonationController::class, 'update'])->name('admin.donations.update');
+        Route::delete('/donations/{id}', [App\Http\Controllers\Admin\DonationController::class, 'destroy'])->name('admin.donations.destroy');
+        Route::get('/requests', [App\Http\Controllers\Admin\FoodRequestController::class, 'index'])->name('admin.requests');
+        Route::get('/requests/{id}', [App\Http\Controllers\Admin\FoodRequestController::class, 'show'])->name('admin.requests.show');
+        Route::delete('/requests/{id}', [App\Http\Controllers\Admin\FoodRequestController::class, 'destroy'])->name('admin.requests.destroy');
+    });
+
+    require __DIR__.'/auth.php';
 });

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
 
 class DonorController extends Controller
 {
@@ -46,8 +47,7 @@ class DonorController extends Controller
             'organisation' => $validated['organisation'] ?? null,
             'city'       => $validated['city'],
             'donor_type' => $validated['donor_type'],
-            // Hash the password in a real app, storing plain text here as it seems to be the pattern
-            'password'   => $validated['password'],
+            'password'   => Hash::make($validated['password']),
             'is_verified'=> true // Set to true so donors can log in immediately
         ]);
 
@@ -71,7 +71,25 @@ class DonorController extends Controller
             return response()->json(['success' => false, 'message' => 'No account found with this email.']);
         }
 
-        if ($donor->password !== $request->password) {
+        $isValid = false;
+        
+        if ($donor->password === $request->password) {
+            // It's a match with an old plain-text password!
+            $isValid = true;
+            
+            // Auto-upgrade their password to a secure hash for future logins
+            $donor->password = Hash::make($request->password);
+            $donor->save();
+        } else {
+            // Try checking against bcrypt, catch exception if it's not a valid bcrypt hash
+            try {
+                $isValid = Hash::check($request->password, $donor->password);
+            } catch (\RuntimeException $e) {
+                $isValid = false;
+            }
+        }
+
+        if (!$isValid) {
             return response()->json(['success' => false, 'message' => 'Incorrect password.']);
         }
 
