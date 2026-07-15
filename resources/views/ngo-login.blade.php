@@ -79,7 +79,7 @@
       <div class="sidebar-inner">
         <div class="sidebar-badge">
           <span class="pulse-dot"></span>
-          <span>1,200+ NGOs &amp; volunteers active</span>
+          <span>{{ number_format($ngoCount ?? 0) }} NGOs &amp; volunteers active</span>
         </div>
         <h2 class="sidebar-headline">
           Food ready.<br />
@@ -90,25 +90,29 @@
         </p>
         <div class="sidebar-stats">
           <div class="ss-item">
-            <span class="ss-num">18 min</span>
-            <span class="ss-label">Avg. food-to-pickup time</span>
+            <span class="ss-num">{{ $platformStats['pickupTime'] }}</span>
+            <span class="ss-label">AVG. FOOD-TO-PICKUP TIME</span>
           </div>
           <div class="ss-item">
-            <span class="ss-num">96%</span>
-            <span class="ss-label">Successful claim rate</span>
+            <span class="ss-num">{{ $platformStats['rate'] }}</span>
+            <span class="ss-label">SUCCESSFUL CLAIM RATE</span>
           </div>
           <div class="ss-item">
-            <span class="ss-num">182K+</span>
-            <span class="ss-label">Meals delivered by NGOs</span>
+            <span class="ss-num">{{ $platformStats['mealsShort'] }}</span>
+            <span class="ss-label">MEALS DELIVERED BY NGOS</span>
           </div>
         </div>
         <div class="sidebar-feed">
           <span class="feed-label">LIVE ACTIVITY</span>
           <ul class="sidebar-feed-list" id="sidebarFeedNgo">
-            <li><span class="feed-dot dot-green"></span> Hope Foundation claimed 30 kg — Dhaka</li>
-            <li><span class="feed-dot dot-amber"></span> Volunteer Rahim picked up bread — Sylhet</li>
-            <li><span class="feed-dot dot-green"></span> Greenfield NGO request approved — Khulna</li>
-            <li><span class="feed-dot dot-coral"></span> Emergency batch claimed in 4 min — Rajshahi</li>
+            @forelse($liveEvents as $event)
+              <li>
+                <span class="feed-dot {{ $event['dot'] }}"></span> 
+                {{ $event['text'] }}
+              </li>
+            @empty
+              <li><span class="feed-dot dot-green"></span> No live rescues at the moment.</li>
+            @endforelse
           </ul>
         </div>
       </div>
@@ -403,6 +407,10 @@
     }
     function saveNgoUsers(u) { localStorage.setItem('resqmeal_ngo_users', JSON.stringify(u)); }
 
+    /* ── Read donation_id from URL (passed from the Live Feed card) ── */
+    const _urlParams    = new URLSearchParams(window.location.search);
+    const _donationId   = _urlParams.get('donation_id') || '';
+
     /* ── Success redirect ── */
     function showNgoSuccess(roleLabel) {
       document.querySelectorAll('.auth-form-panel').forEach(p => p.style.display = 'none');
@@ -411,9 +419,10 @@
       document.getElementById('ngoRoleDisplay').textContent = roleLabel;
       let w = 0;
       const fill = document.getElementById('ngoSuccessFill');
+      const dest  = _donationId ? `/request?donation_id=${_donationId}` : '/#live-feed';
       const t = setInterval(() => {
         w += 2; fill.style.width = w + '%';
-        if (w >= 100) { clearInterval(t); window.location.href = '/#live-feed'; }
+        if (w >= 100) { clearInterval(t); window.location.href = dest; }
       }, 30);
     }
 
@@ -441,7 +450,7 @@
           'Accept':       'application/json',
           'X-CSRF-TOKEN': csrfToken,
         },
-        body: JSON.stringify({ email, password: pw }),
+        body: JSON.stringify({ email, password: pw, remember: document.getElementById('ngo-remember-me').checked }),
       })
       .then(async res => {
         const data = await res.json();
@@ -547,14 +556,9 @@
     });
 
     /* ── Live activity feed animation ── */
-    const ngoFeedItems = [
-      '&#x1F7E2; Hope Foundation claimed 30 kg — Dhaka',
-      '&#x1F7E1; Volunteer Rahim picked up bread — Sylhet',
-      '&#x1F7E2; Greenfield NGO request approved — Khulna',
-      '&#x1F534; Emergency batch claimed in 4 min — Rajshahi',
-      '&#x1F7E2; Al-Amin Shelter received 60 plates — Dhaka',
-      '&#x1F7E1; 5 volunteers dispatched — Chittagong',
-    ];
+    const ngoFeedItems = {!! json_encode(array_map(function($e) {
+      return '<span class="feed-dot ' . $e['dot'] . '"></span> ' . $e['text'];
+    }, $liveEvents ?? [])) !!};
     let ngoFeedIdx = 0;
     const ngoFeedList = document.getElementById('sidebarFeedNgo');
     if (ngoFeedList) {
@@ -574,10 +578,8 @@
       }, 3000);
     }
 
-    /* ── Redirect if already logged in ── */
-    if (sessionStorage.getItem('resqmeal_ngo_user')) {
-      window.location.href = '/#live-feed';
-    }
+    /* ── No auto-redirect: Clear stale session ── */
+    sessionStorage.removeItem('resqmeal_ngo_user');
   </script>
 </body>
 </html>
