@@ -24,7 +24,6 @@
         <li><a href="#live-feed">Live Feed</a></li>
         <li><a href="#analytics">Analytics</a></li>
         <li><a href="#trust">Trust Score</a></li>
-        <li><a href="#alerts">Alerts</a></li>
       </ul>
 
       <div class="nav-actions">
@@ -45,7 +44,6 @@
       <li><a href="#live-feed">Live Feed</a></li>
       <li><a href="#analytics">Analytics</a></li>
       <li><a href="#trust">Trust Score</a></li>
-      <li><a href="#alerts">Alerts</a></li>
       <li><a href="/donate" class="btn-primary full-width">Donate Food</a></li>
     </ul>
   </div>
@@ -195,28 +193,14 @@
           <p>Donors set windows; volunteers book slots. Automated reminders eliminate missed pickups.</p>
         </div>
 
-        <div class="feat-card feat-card--large feat-card--dark">
-          <div class="feat-icon-wrap accent-amber">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-          </div>
-          <h3>Location Tracking</h3>
-          <p>Live map view of donors, pickup points, and NGO hubs. Volunteers navigate with one tap.</p>
-          <!-- Map placeholder -->
-          <div class="map-placeholder">
-            <div class="map-pin pin-1">📍</div>
-            <div class="map-pin pin-2">🏢</div>
-            <div class="map-pin pin-3">🚐</div>
-            <div class="map-grid"></div>
-            <span class="map-label">Live Coverage Map</span>
-          </div>
-        </div>
+
 
         <div class="feat-card">
           <div class="feat-icon-wrap accent-sage">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
           </div>
           <h3>Donation History</h3>
-          <p>Donors receive a verified impact log — meals rescued, CO₂ saved, and communities reached.</p>
+          <p>Donors and NGOs can log in to their dashboard to view a complete record of all their donations, requested meals, and approved food pickups.</p>
         </div>
 
         <div class="feat-card">
@@ -224,7 +208,7 @@
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
           </div>
           <h3>Food Waste Analytics</h3>
-          <p>Dashboards track waste trends by category, zone, and time — turning data into policy insights.</p>
+          <p>The admin dashboard tracks all platform activity with dynamic charts for donations by day, total meals rescued, and food categories to analyze rescue impact.</p>
         </div>
 
       </div>
@@ -326,9 +310,9 @@
     <div class="container">
       <div class="match-layout">
         <div class="match-text">
-          <span class="section-tag">AI-Powered</span>
+          <span class="section-tag">Data-Driven</span>
           <h2 class="section-title">Smart Food Matching<br />&amp; Priority Distribution</h2>
-          <p>Our algorithm continuously scores every donation against recipient need, distance, capacity, and dietary requirements — sending the right food to the right people in minutes.</p>
+          <p>Our matching system pairs every donation against recipient needs, location, and dietary requirements — ensuring the right food reaches the right people quickly.</p>
           <ul class="match-list">
             <li>
               <span class="match-dot dot-green"></span>
@@ -358,7 +342,7 @@
           <div class="match-card-wrap">
             <div class="match-node donor">
               <span class="node-icon">🏪</span>
-              <span>Hotel Landmark</span>
+              <span>{{ $matchDonorName }}</span>
               <span class="node-tag">Donor</span>
             </div>
             <div class="match-arrows">
@@ -372,12 +356,12 @@
             <div class="match-recipients">
               <div class="match-node recipient priority">
                 <span class="node-icon">🏠</span>
-                <span>Safe Haven Shelter</span>
+                <span>{{ isset($matchRecipients[0]) ? ($matchRecipients[0]->organisation ?? ($matchRecipients[0]->first_name . ' ' . $matchRecipients[0]->last_name)) : 'Safe Haven Shelter' }}</span>
                 <span class="node-tag priority-tag">Priority</span>
               </div>
               <div class="match-node recipient">
                 <span class="node-icon">🕌</span>
-                <span>Al-Noor Mosque</span>
+                <span>{{ isset($matchRecipients[1]) ? ($matchRecipients[1]->organisation ?? ($matchRecipients[1]->first_name . ' ' . $matchRecipients[1]->last_name)) : 'Al-Noor Mosque' }}</span>
                 <span class="node-tag">Standard</span>
               </div>
             </div>
@@ -458,47 +442,48 @@
           <span class="section-tag">Trust & Safety</span>
           <h2 class="section-title">Food Safety Verification<br />&amp; Trust Score System</h2>
           <p>Every donor and recipient is verified. Food is logged, timestamped, and temperature-flagged. Our Trust Score gives communities confidence in every rescue.</p>
-          <a href="#" class="btn-primary">View Verification Process</a>
+          <a href="#how" class="btn-primary">View Verification Process</a>
         </div>
 
-        <div class="trust-cards">
-          <div class="trust-card">
-            <div class="trust-score-ring">
-              <svg viewBox="0 0 80 80">
-                <circle cx="40" cy="40" r="34" fill="none" stroke="#1f1f1f" stroke-width="6"/>
-                <circle cx="40" cy="40" r="34" fill="none" stroke="#F5A623" stroke-width="6"
-                  stroke-dasharray="178 35" stroke-dashoffset="25" stroke-linecap="round"/>
-              </svg>
-              <span class="ring-score">94</span>
+          <div class="trust-cards">
+            <div class="trust-card">
+              <div class="trust-score-ring">
+                <svg viewBox="0 0 80 80">
+                  <circle cx="40" cy="40" r="34" fill="none" stroke="#1f1f1f" stroke-width="6"/>
+                  <circle cx="40" cy="40" r="34" fill="none" stroke="#F5A623" stroke-width="6"
+                    stroke-dasharray="{{ ($donorScore / 100) * 213.6 }} {{ 213.6 - (($donorScore / 100) * 213.6) }}" stroke-dashoffset="25" stroke-linecap="round"/>
+                </svg>
+                <span class="ring-score">{{ $donorScore }}</span>
+              </div>
+              <div class="trust-info">
+                <strong>{{ $topDonor->organisation ?? ($topDonor->first_name . ' ' . $topDonor->last_name) }}</strong>
+                <span class="trust-tag verified">✅ Verified Donor</span>
+                <ul class="trust-checks">
+                  <li>✔ Food hygiene certificate</li>
+                  <li>✔ {{ $topDonor->donations_count }} successful rescues</li>
+                  <li>✔ Zero safety incidents</li>
+                </ul>
+              </div>
             </div>
-            <div class="trust-info">
-              <strong>Hotel Landmark Dhaka</strong>
-              <span class="trust-tag verified">✅ Verified Donor</span>
-              <ul class="trust-checks">
-                <li>✔ Food hygiene certificate</li>
-                <li>✔ 47 successful rescues</li>
-                <li>✔ Zero safety incidents</li>
-              </ul>
-            </div>
-          </div>
 
-          <div class="trust-card">
-            <div class="trust-score-ring">
-              <svg viewBox="0 0 80 80">
-                <circle cx="40" cy="40" r="34" fill="none" stroke="#1f1f1f" stroke-width="6"/>
-                <circle cx="40" cy="40" r="34" fill="none" stroke="#4A7C59" stroke-width="6"
-                  stroke-dasharray="160 53" stroke-dashoffset="25" stroke-linecap="round"/>
-              </svg>
-              <span class="ring-score">87</span>
-            </div>
-            <div class="trust-info">
-              <strong>Green Hope NGO</strong>
-              <span class="trust-tag ngo">🏢 Certified NGO</span>
-              <ul class="trust-checks">
-                <li>✔ Government registered</li>
-                <li>✔ 120 distributions completed</li>
-                <li>✔ Real-time reporting enabled</li>
-              </ul>
+            <div class="trust-card">
+              <div class="trust-score-ring">
+                <svg viewBox="0 0 80 80">
+                  <circle cx="40" cy="40" r="34" fill="none" stroke="#1f1f1f" stroke-width="6"/>
+                  <circle cx="40" cy="40" r="34" fill="none" stroke="#4A7C59" stroke-width="6"
+                    stroke-dasharray="{{ ($ngoScore / 100) * 213.6 }} {{ 213.6 - (($ngoScore / 100) * 213.6) }}" stroke-dashoffset="25" stroke-linecap="round"/>
+                </svg>
+                <span class="ring-score">{{ $ngoScore }}</span>
+              </div>
+              <div class="trust-info">
+                <strong>{{ $topNgo->organisation ?? ($topNgo->first_name . ' ' . $topNgo->last_name) }}</strong>
+                <span class="trust-tag ngo">🏢 Certified NGO</span>
+                <ul class="trust-checks">
+                  <li>✔ Government registered</li>
+                  <li>✔ {{ $topNgo->req_count }} distributions completed</li>
+                  <li>✔ Real-time reporting enabled</li>
+                </ul>
+              </div>
             </div>
           </div>
 
@@ -513,56 +498,7 @@
     </div>
   </section>
 
-  <!-- ───────────────────── EMERGENCY ALERTS ───────────────────── -->
-  <section class="alerts" id="alerts">
-    <div class="container">
-      <div class="alerts-header">
-        <span class="section-tag light">Emergency System</span>
-        <h2 class="section-title light">Food Alerts,<br />Activated in Seconds.</h2>
-        <p class="section-desc light">When disaster strikes, ResQMeal's emergency food alert network mobilizes donors, NGOs, and volunteers instantly.</p>
-      </div>
 
-      <div class="alerts-grid">
-        <div class="alert-card alert-active">
-          <div class="alert-top">
-            <span class="alert-status blink">🔴 ACTIVE</span>
-            <span class="alert-zone">Sylhet Flood Zone 2</span>
-          </div>
-          <h4>Emergency Food Needed — 500+ people</h4>
-          <p>Flash flood displaced families require cooked meals and dry rations immediately.</p>
-          <div class="alert-progress">
-            <span>Response: 68%</span>
-            <div class="alert-bar"><div class="alert-fill" style="--fill:68%"></div></div>
-          </div>
-          <button class="btn-alert">Respond Now</button>
-        </div>
-
-        <div class="alert-card alert-resolved">
-          <div class="alert-top">
-            <span class="alert-status resolved">✅ RESOLVED</span>
-            <span class="alert-zone">Khulna Zone 3</span>
-          </div>
-          <h4>Post-Cyclone Food Distribution</h4>
-          <p>1,200 meals distributed in 4 hours. All families in zone reached.</p>
-          <div class="alert-progress">
-            <span>Response: 100%</span>
-            <div class="alert-bar"><div class="alert-fill" style="--fill:100%"></div></div>
-          </div>
-          <button class="btn-secondary">View Report</button>
-        </div>
-
-        <div class="alert-setup">
-          <h4>Set Up Your Alert Zone</h4>
-          <p>Receive push notifications for food emergencies in your area and respond with a single tap.</p>
-          <div class="alert-form">
-            <input type="text" placeholder="Enter your city or district…" class="alert-input" />
-            <button class="btn-primary">Activate Alerts</button>
-          </div>
-          <span class="alert-note">Free for all donors, NGOs, and volunteers.</span>
-        </div>
-      </div>
-    </div>
-  </section>
 
   <!-- ───────────────────── HOW IT WORKS ───────────────────── -->
   <section class="how-it-works" id="how">
@@ -575,30 +511,30 @@
       <div class="steps-row">
         <div class="step">
           <div class="step-num">01</div>
-          <div class="step-icon">📸</div>
-          <h4>Post Your Surplus</h4>
-          <p>Snap a photo, enter quantity and expiry — done in 60 seconds.</p>
+          <div class="step-icon">📝</div>
+          <h4>Register & Post Donation</h4>
+          <p>Donors register, log in, and fill a 4-step form — food details, pickup window, safety info, and optional photo.</p>
         </div>
         <div class="step-arrow">→</div>
         <div class="step">
           <div class="step-num">02</div>
-          <div class="step-icon">🤖</div>
-          <h4>Smart Matching</h4>
-          <p>Our algorithm instantly finds the best-fit recipient in your zone.</p>
+          <div class="step-icon">🏢</div>
+          <h4>NGO Requests Food</h4>
+          <p>Registered NGOs and volunteers browse the live feed, view donation details and matched scores, then submit a food request.</p>
         </div>
         <div class="step-arrow">→</div>
         <div class="step">
           <div class="step-num">03</div>
-          <div class="step-icon">🚐</div>
-          <h4>Schedule Pickup</h4>
-          <p>Volunteer or NGO confirms a slot and navigates to your location.</p>
+          <div class="step-icon">✅</div>
+          <h4>Admin Approves</h4>
+          <p>The platform admin reviews all food requests from the dashboard and approves or rejects based on priority and availability.</p>
         </div>
         <div class="step-arrow">→</div>
         <div class="step">
           <div class="step-num">04</div>
-          <div class="step-icon">❤️</div>
-          <h4>Impact Logged</h4>
-          <p>Every rescue is added to your verified donation history and analytics.</p>
+          <div class="step-icon">📊</div>
+          <h4>History & Impact Logged</h4>
+          <p>Donors view completed rescues in My History. Approved pickups are tracked in admin analytics for real-time impact reporting.</p>
         </div>
       </div>
     </div>
