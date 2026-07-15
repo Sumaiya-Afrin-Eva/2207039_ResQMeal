@@ -45,8 +45,6 @@
         <a href="/donate" class="dnav-link">Post Donation</a>
         <a href="/my-history" class="dnav-link">My History</a>
         <a href="/donor-requests" class="dnav-link active">Requests <span id="reqBadge" style="display:none; background:var(--coral); color:#fff; border-radius:50%; padding:2px 6px; font-size:12px; margin-left:4px;">0</span></a>
-        <a href="#" class="dnav-link">Live Feed</a>
-        <a href="#" class="dnav-link">Analytics</a>
       </div>
       <div class="donor-profile" id="donorProfile">
         <div class="dp-avatar" id="dpAvatar">A</div>
@@ -71,6 +69,25 @@
     </div>
   </div>
 
+  @if(session()->has('donor'))
+  <script>
+    if (!sessionStorage.getItem('resqmeal_user')) {
+      const serverDonor = {!! json_encode(session('donor')) !!};
+      const formattedDonor = {
+          id: serverDonor.id,
+          email: serverDonor.email,
+          name: serverDonor.first_name,
+          last: serverDonor.last_name,
+          phone: serverDonor.phone,
+          city: serverDonor.city,
+          donorType: serverDonor.donor_type,
+          org: serverDonor.organisation,
+      };
+      sessionStorage.setItem('resqmeal_user', JSON.stringify(formattedDonor));
+    }
+  </script>
+  @endif
+
   <script>
     const user = JSON.parse(sessionStorage.getItem('resqmeal_user') || 'null');
     if (!user || !user.id) {
@@ -84,7 +101,7 @@
 
     document.getElementById('logoutBtn').addEventListener('click', () => {
       sessionStorage.removeItem('resqmeal_user');
-      window.location.href = '/';
+      window.location.href = '/donor-logout';
     });
 
     function loadRequests() {
