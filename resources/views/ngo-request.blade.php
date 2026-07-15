@@ -81,6 +81,25 @@
     </div>
   </div>
 
+  @if(session()->has('ngo'))
+  <script>
+    if (!sessionStorage.getItem('resqmeal_ngo_user')) {
+      const serverNgo = {!! json_encode(session('ngo')) !!};
+      sessionStorage.setItem('resqmeal_ngo_user', JSON.stringify({
+        email:         serverNgo.email,
+        name:          serverNgo.first_name,
+        last:          serverNgo.last_name,
+        phone:         serverNgo.phone,
+        city:          serverNgo.city,
+        org:           serverNgo.organisation,
+        receiver_type: serverNgo.receiver_type,
+        role:          'ngo',
+        isNgo:         true,
+      }));
+    }
+  </script>
+  @endif
+
   <script>
     const ngoUser = JSON.parse(sessionStorage.getItem('resqmeal_ngo_user') || 'null');
     if (!ngoUser || !ngoUser.email) {
@@ -97,7 +116,7 @@
 
     document.getElementById('logoutBtn').addEventListener('click', () => {
       sessionStorage.removeItem('resqmeal_ngo_user');
-      window.location.href = '/';
+      window.location.href = '/ngo-logout';
     });
 
     function loadRequests() {

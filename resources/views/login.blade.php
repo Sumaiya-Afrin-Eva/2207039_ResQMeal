@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>ResQMeal — Donor Login</title>
+  <meta name="csrf-token" content="{{ csrf_token() }}" />
   <link rel="stylesheet" href="css/style.css" />
   <link rel="stylesheet" href="css/auth.css" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -36,7 +37,7 @@
       <div class="sidebar-inner">
         <div class="sidebar-badge">
           <span class="pulse-dot"></span>
-          <span>182,400+ meals rescued</span>
+          <span>{{ number_format($donorCount ?? 0) }} Donors active</span>
         </div>
 
         <h2 class="sidebar-headline">
@@ -50,15 +51,15 @@
 
         <div class="sidebar-stats">
           <div class="ss-item">
-            <span class="ss-num">18 min</span>
+            <span class="ss-num">{{ $platformStats['pickupTime'] }}</span>
             <span class="ss-label">Avg. food-to-pickup time</span>
           </div>
           <div class="ss-item">
-            <span class="ss-num">98%</span>
+            <span class="ss-num">{{ $platformStats['rate'] }}</span>
             <span class="ss-label">Successful pickup rate</span>
           </div>
           <div class="ss-item">
-            <span class="ss-num">4.2 T</span>
+            <span class="ss-num">{{ $platformStats['co2'] }}</span>
             <span class="ss-label">CO₂ prevented this month</span>
           </div>
         </div>
@@ -67,10 +68,14 @@
         <div class="sidebar-feed">
           <span class="feed-label">LIVE RESCUES</span>
           <ul class="sidebar-feed-list" id="sidebarFeed">
-            <li><span class="feed-dot dot-green"></span> 45 kg biryani rescued — Khulna</li>
-            <li><span class="feed-dot dot-amber"></span> 12 kg vegetables claimed — Dhaka</li>
-            <li><span class="feed-dot dot-coral"></span> Emergency alert cleared — Sylhet</li>
-            <li><span class="feed-dot dot-green"></span> 60 meals posted by Spice Garden</li>
+            @forelse($liveEvents as $event)
+              <li>
+                <span class="feed-dot {{ $event['dot'] }}"></span> 
+                {{ $event['text'] }}
+              </li>
+            @empty
+              <li><span class="feed-dot dot-green"></span> No live rescues at the moment.</li>
+            @endforelse
           </ul>
         </div>
       </div>
@@ -387,6 +392,19 @@
       if (inp) inp.closest('.input-wrap')?.classList.add('error');
     }
 
+    /* ─── LOCAL USER STORAGE HELPERS ───────────────── */
+    function getStoredUsers() {
+      try {
+        return JSON.parse(localStorage.getItem('resqmeal_users') || '[]');
+      } catch (e) {
+        return [];
+      }
+    }
+
+    function saveStoredUsers(users) {
+      localStorage.setItem('resqmeal_users', JSON.stringify(users));
+    }
+
     /* ─── SHOW AUTH SUCCESS ─────────────────────────── */
     function showSuccess() {
       document.querySelectorAll('.auth-form-panel').forEach(p => p.style.display = 'none');
@@ -418,17 +436,52 @@
       }
       if (!valid) return;
 
-      // Simulate async login
+      // Send async login request
       const btn = document.getElementById('loginBtn');
       btn.querySelector('.btn-text').hidden   = true;
       btn.querySelector('.btn-spinner').hidden = false;
       btn.disabled = true;
 
-      setTimeout(() => {
-        // Demo: store session in sessionStorage
-        sessionStorage.setItem('resqmeal_user', JSON.stringify({ email, name: email.split('@')[0] }));
+      fetch('/donor-login-check', {
+        method: 'POST',
+        headers: { 
+            'Content-Type': 'application/json', 
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+            'Accept': 'application/json'
+        },
+        body: JSON.stringify({ email, password: pw, remember: document.getElementById('remember-me').checked })
+      })
+      .then(r => r.json())
+      .then(res => {
+        if (!res.success) {
+          btn.querySelector('.btn-text').hidden = false;
+          btn.querySelector('.btn-spinner').hidden = true;
+          btn.disabled = false;
+          markError('login-email', 'login-email-err', res.message);
+          return;
+        }
+
+        const donor = res.donor;
+        const loggedUser = {
+          id: donor.id,
+          email: donor.email,
+          name: donor.first_name,
+          last: donor.last_name,
+          phone: donor.phone,
+          city: donor.city,
+          donorType: donor.donor_type,
+          org: donor.organisation,
+        };
+
+        sessionStorage.setItem('resqmeal_user', JSON.stringify(loggedUser));
         showSuccess();
-      }, 1500);
+      })
+      .catch(err => {
+          btn.querySelector('.btn-text').hidden = false;
+          btn.querySelector('.btn-spinner').hidden = true;
+          btn.disabled = false;
+          markError('login-email', 'login-email-err', 'Server error. Try again.');
+      });
     });
 
     /* ─── REGISTER SUBMIT ───────────────────────────── */
@@ -455,28 +508,60 @@
       if (!terms) { setError('reg-terms-err', 'You must accept the terms to continue.'); valid = false; }
       if (!valid) return;
 
-      const btn = document.getElementById('registerBtn');
-      btn.querySelector('.btn-text').hidden   = true;
-      btn.querySelector('.btn-spinner').hidden = false;
-      btn.disabled = true;
 
-      setTimeout(() => {
-        const donorType = document.querySelector('input[name="donor-type"]:checked')?.value || 'individual';
-        const org = document.getElementById('reg-org').value.trim();
-        sessionStorage.setItem('resqmeal_user', JSON.stringify({ email, name: first, last, phone, city, donorType, org }));
-        showSuccess();
-      }, 2000);
+      const btnReg = document.getElementById('registerBtn');
+      btnReg.querySelector('.btn-text').hidden   = true;
+      btnReg.querySelector('.btn-spinner').hidden = false;
+      btnReg.disabled = true;
+
+      const donorType = document.querySelector('input[name="donor-type"]:checked')?.value || 'individual';
+      const org = document.getElementById('reg-org').value.trim();
+
+      fetch('/donor-register', {
+        method: 'POST',
+        headers: { 
+            'Content-Type': 'application/json', 
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+            'Accept': 'application/json'
+        },
+        body: JSON.stringify({
+            first_name: first,
+            last_name: last,
+            email: email,
+            phone: phone,
+            city: city,
+            donor_type: donorType,
+            organisation: org,
+            password: pw
+        })
+      })
+      .then(r => r.json())
+      .then(res => {
+          if (!res.success) {
+             btnReg.querySelector('.btn-text').hidden = false;
+             btnReg.querySelector('.btn-spinner').hidden = true;
+             btnReg.disabled = false;
+             markError('reg-email', 'reg-email-err', res.message || 'Registration failed.');
+             return;
+          }
+          
+          const donor = res.donor;
+          const newUser = { id: donor.id, email, name: donor.first_name, last: donor.last_name, phone, city, donorType, org };
+          sessionStorage.setItem('resqmeal_user', JSON.stringify(newUser));
+          showSuccess();
+      })
+      .catch(err => {
+         btnReg.querySelector('.btn-text').hidden = false;
+         btnReg.querySelector('.btn-spinner').hidden = true;
+         btnReg.disabled = false;
+         markError('reg-email', 'reg-email-err', 'Server error. Registration failed.');
+      });
     });
 
     /* ─── LIVE FEED ANIMATION ───────────────────────── */
-    const feedItems = [
-      '🟢 45 kg biryani rescued — Khulna',
-      '🟡 12 kg vegetables claimed — Dhaka',
-      '🔴 Emergency alert cleared — Sylhet',
-      '🟢 60 meals posted by Spice Garden',
-      '🟡 Bread (5 trays) — Sylhet pickup in 22 min',
-      '🟢 Community kitchen posted 80 plates',
-    ];
+    const feedItems = {!! json_encode(array_map(function($e) {
+      return '<span class="feed-dot ' . $e['dot'] . '"></span> ' . $e['text'];
+    }, $liveEvents ?? [])) !!};
     let feedIdx = 0;
     const feedList = document.getElementById('sidebarFeed');
     if (feedList) {
@@ -496,11 +581,10 @@
       }, 3000);
     }
 
-    /* ─── REDIRECT IF ALREADY LOGGED IN ─────────────── */
-    if (sessionStorage.getItem('resqmeal_user')) {
-      const params = new URLSearchParams(window.location.search);
-      window.location.href = params.get('redirect') || 'donate';
-    }
+    /* ─── CLEAR STALE SESSION ───────────────────────── */
+    // If the user reaches this page, the backend confirmed they are logged out.
+    // Clear any stale frontend session state to prevent redirect loops.
+    sessionStorage.removeItem('resqmeal_user');
   </script>
 </body>
 </html>
