@@ -19,22 +19,28 @@ Route::get('/ngo-login', [PageController::class, 'ngoLogin']);
 Route::post('/ngo-login-check', [NGOVolunteerController::class, 'login'])->name('ngo.login');
 Route::post('/ngo-register',    [NGOVolunteerController::class, 'store'])->name('ngo.register');
 
-Route::get('/donate', function () {
-    return view('donate');
+Route::get('/donor-logout', [DonorController::class, 'logout'])->name('donor.logout');
+
+Route::get('/donation/{id}', [DonationController::class, 'show'])->name('donation.show');
+
+Route::middleware(['donor-auth'])->group(function () {
+    Route::get('/donate', function () {
+        return view('donate');
+    });
+
+    Route::get('/my-history', function () {
+        return view('donor-history');
+    });
+
+    Route::get('/donor-requests', function () {
+        return view('donor-requests');
+    });
 });
 
 Route::post('/donate', [DonationController::class, 'store'])->name('donations.store');
-Route::get('/donation/{id}', [DonationController::class, 'show'])->name('donation.show');
-
-Route::get('/my-history', function () {
-    return view('donor-history');
-});
-
-Route::get('/donor-requests', function () {
-    return view('donor-requests');
-});
 
 Route::get('/api/donations/history', [DonationController::class, 'history']);
+Route::get('/api/donor/trust-score', [DonorController::class, 'trustScore']);
 Route::get('/api/donations/{id}/matched-ngos', [DonationController::class, 'matchedNgos']);
 Route::get('/api/donations/{id}', [DonationController::class, 'apiShow']);
 Route::put('/api/donations/{id}', [DonationController::class, 'update']);
@@ -46,25 +52,24 @@ Route::get('/api/ngo/requests', [App\Http\Controllers\FoodRequestController::cla
 Route::post('/api/requests/{id}/approve', [App\Http\Controllers\FoodRequestController::class, 'approve']);
 Route::post('/api/requests/{id}/reject', [App\Http\Controllers\FoodRequestController::class, 'reject']);
 
-Route::get('/request',  [FoodRequestController::class, 'create'])->name('food.request.form');
-Route::post('/request', [FoodRequestController::class, 'store'])->name('food.request.store');
+Route::get('/ngo-logout', [NGOVolunteerController::class, 'logout'])->name('ngo.logout');
 
-Route::get('/ngo-requests', function () {
-    return view('ngo-requests');
+Route::middleware(['ngo-auth'])->group(function () {
+    Route::get('/request',  [FoodRequestController::class, 'create'])->name('food.request.form');
+    Route::get('/ngo-requests', function () {
+        return view('ngo-requests');
+    });
 });
+
+Route::post('/request', [FoodRequestController::class, 'store'])->name('food.request.store');
 
 // Admin Dashboard Routes (Breeze Authentication)
 Route::prefix('admin')->group(function () {
-    Route::get('/dashboard', function () {
-        $totalDonors = \App\Models\Donor::count();
-        $totalNGOs = \App\Models\NGOVolunteer::count();
-        $totalDonations = \App\Models\Donation::count();
-        $totalRequests = \App\Models\FoodRequest::count();
-        
-        return view('dashboard', compact('totalDonors', 'totalNGOs', 'totalDonations', 'totalRequests'));
-    })->middleware(['auth', 'verified'])->name('dashboard');
+    Route::get('/dashboard', [\App\Http\Controllers\Admin\AdminDashboardController::class, 'index'])
+         ->middleware(['auth', 'verified', 'prevent-direct-access'])
+         ->name('dashboard');
 
-    Route::middleware('auth')->group(function () {
+    Route::middleware(['auth', 'prevent-direct-access'])->group(function () {
         Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
         Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
         Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
