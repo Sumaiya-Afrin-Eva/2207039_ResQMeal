@@ -29,10 +29,9 @@
       </a>
 
       <div class="donor-nav-links">
-        <a href="donate" class="dnav-link active">Post Donation</a>
-        <a href="#" class="dnav-link">My History</a>
-        <a href="#" class="dnav-link">Live Feed</a>
-        <a href="#" class="dnav-link">Analytics</a>
+        <a href="/donate" class="dnav-link active">Post Donation</a>
+        <a href="/my-history" class="dnav-link">My History</a>
+        <a href="/donor-requests" class="dnav-link">Requests <span id="reqBadge" style="display:none; background:var(--coral); color:#fff; border-radius:50%; padding:2px 6px; font-size:12px; margin-left:4px;">0</span></a>
       </div>
 
       <div class="donor-profile" id="donorProfile">
@@ -92,14 +91,14 @@
         <div class="trust-ring-small">
           <svg viewBox="0 0 60 60">
             <circle cx="30" cy="30" r="24" fill="none" stroke="rgba(255,255,255,.08)" stroke-width="5"/>
-            <circle cx="30" cy="30" r="24" fill="none" stroke="#F5A623" stroke-width="5"
-              stroke-dasharray="130 20" stroke-dashoffset="20" stroke-linecap="round"/>
+            <circle id="trustCircle" cx="30" cy="30" r="24" fill="none" stroke="#F5A623" stroke-width="5"
+              stroke-dasharray="150.8 0" stroke-dashoffset="0" stroke-linecap="round"/>
           </svg>
-          <span>87</span>
+          <span id="trustScoreVal">--</span>
         </div>
         <div>
           <strong id="sidebarName">Your Trust Score</strong>
-          <span>Based on 12 past donations</span>
+          <span id="trustScoreMeta">Loading stats...</span>
         </div>
       </div>
 
@@ -580,6 +579,12 @@
             <span class="field-error" id="final-decl-err"></span>
           </div>
 
+          <!-- ── Smart Matched Recipients (View Mode Only) ── -->
+          <div id="matchedNgosPanel" style="display:none; margin-bottom: 28px; border-top: 1px solid #eaeaea; padding-top: 24px;">
+            <p style="font-size:0.8rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#4a7c59;margin-bottom:14px;">🎯 Smart Matched Recipients</p>
+            <div id="matchedNgosList" style="display:flex;flex-direction:column;gap:10px;"></div>
+          </div>
+
           <div class="step-actions post-actions">
             <button type="button" class="btn-back" data-prev="3">← Back</button>
             <button type="submit" class="btn-post" id="postBtn">
@@ -603,7 +608,7 @@
             </svg>
           </div>
         </div>
-        <h2>Donation Posted! 🎉</h2>
+        <h2>Donation <span id="successTitleAction">Posted</span>! 🎉</h2>
         <p>Your food listing is now <strong>live on the feed</strong>. Our system is matching it to nearby NGOs and volunteers right now.</p>
 
         <div class="success-stats-row">
@@ -627,6 +632,157 @@
   </div>
 
   <script>
+    const urlParams = new URLSearchParams(window.location.search);
+    const editId = urlParams.get('edit');
+    const viewId = urlParams.get('view');
+    const activeId = editId || viewId;
+
+    if (activeId) {
+      document.querySelector('#postBtn .btn-text').textContent = "🚀 Update Donation";
+      document.getElementById('successTitleAction').textContent = "Updated";
+
+      fetch(`/api/donations/${activeId}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.success) {
+            const d = data.donation;
+            document.getElementById('food-name').value = d.food_name || '';
+            
+            if (d.category) {
+              const cat = document.querySelector(`input[name="food-cat"][value="${d.category.toLowerCase()}"]`);
+              if (cat) cat.checked = true;
+            }
+            
+            document.getElementById('food-qty').value = d.quantity || '';
+            
+            if (d.unit) {
+               document.getElementById('food-unit').value = d.unit.toLowerCase();
+            }
+            
+            document.getElementById('food-serves').value = d.serves || '';
+
+            // Date formatting for datetime-local
+            if (d.expiry) {
+              const ex = new Date(d.expiry);
+              ex.setMinutes(ex.getMinutes() - ex.getTimezoneOffset());
+              document.getElementById('food-expiry').value = ex.toISOString().slice(0, 16);
+            }
+            if (d.pickup_from) {
+              const pf = new Date(d.pickup_from);
+              pf.setMinutes(pf.getMinutes() - pf.getTimezoneOffset());
+              document.getElementById('pickup-from').value = pf.toISOString().slice(0, 16);
+            }
+            if (d.pickup_to) {
+              const pt = new Date(d.pickup_to);
+              pt.setMinutes(pt.getMinutes() - pt.getTimezoneOffset());
+              document.getElementById('pickup-to').value = pt.toISOString().slice(0, 16);
+            }
+
+            document.getElementById('pickup-address').value = d.pickup_address || '';
+            document.getElementById('pickup-contact').value = d.pickup_contact || '';
+
+            if (d.storage) {
+              const storage = document.querySelector(`input[name="storage"][value="${d.storage.toLowerCase()}"]`);
+              if (storage) storage.checked = true;
+            }
+            if (d.packaging) {
+              const packaging = document.querySelector(`input[name="packaging"][value="${d.packaging.toLowerCase()}"]`);
+              if (packaging) packaging.checked = true;
+            }
+            
+            document.getElementById('safety-notes').value = d.notes || '';
+            
+            if (d.visibility) {
+              const visibility = document.querySelector(`input[name="visibility"][value="${d.visibility.toLowerCase()}"]`);
+              if (visibility) visibility.checked = true;
+            }
+            
+            if (d.emergency) {
+              document.getElementById('emergencyFlag').checked = true;
+            }
+
+            if (d.allergens) {
+              const allergens = d.allergens.toLowerCase().split(',').map(s => s.trim());
+              allergens.forEach(a => {
+                const cb = document.querySelector(`#step-3 .dietary-flags input[value="${a}"]`);
+                if (cb) cb.checked = true;
+              });
+            }
+            if (d.dietary) {
+              const dietary = d.dietary.toLowerCase().split(',').map(s => s.trim());
+              dietary.forEach(di => {
+                const cb = document.querySelector(`#step-1 .dietary-flags input[value="${di}"]`);
+                if (cb) cb.checked = true;
+              });
+            }
+            
+            // Automatically jump to Step 4 (Review & Publish) ONLY for view mode
+            if (viewId) {
+              setTimeout(() => {
+                goToStep(4);
+              }, 100);
+
+              // Fetch and render Smart Matched Recipients
+              fetch(`/api/donations/${viewId}/matched-ngos`)
+                .then(r => r.json())
+                .then(res => {
+                  if (res.success && res.matched.length > 0) {
+                    const panel = document.getElementById('matchedNgosPanel');
+                    const list  = document.getElementById('matchedNgosList');
+                    panel.style.display = 'block';
+                    list.innerHTML = res.matched.map(ngo => {
+                      const barColor = ngo.match_score >= 70 ? '#4a7c59' : (ngo.match_score >= 40 ? '#f59e0b' : '#adb5bd');
+                      const tagBg    = ngo.is_priority ? 'rgba(74,124,89,0.12)' : 'rgba(99,102,241,0.1)';
+                      const tagColor = ngo.is_priority ? '#4a7c59' : '#6366f1';
+                      const tagText  = ngo.is_priority ? 'Priority' : 'Standard';
+                      const icon     = ngo.is_priority ? '🏠' : '🏢';
+                      return `
+                        <div style="background:#f8f9fa;border:1px solid #eaeaea;border-radius:10px;padding:14px 16px;display:flex;align-items:center;gap:14px;">
+                          <div style="font-size:1.4rem;width:36px;text-align:center;">${icon}</div>
+                          <div style="flex:1;min-width:0;">
+                            <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px;">
+                              <strong style="font-size:0.9rem;color:#1a1a1a;">${ngo.name}</strong>
+                              <span style="font-size:0.7rem;font-weight:700;padding:2px 8px;border-radius:20px;background:${tagBg};color:${tagColor};text-transform:uppercase;">${tagText}</span>
+                            </div>
+                            <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+                              <div style="flex:1;height:5px;background:#e9ecef;border-radius:3px;overflow:hidden;">
+                                <div style="height:100%;width:${ngo.match_score}%;background:${barColor};border-radius:3px;"></div>
+                              </div>
+                              <span style="font-size:0.75rem;color:#6c757d;white-space:nowrap;">${ngo.match_score}% match</span>
+                            </div>
+                            <span style="font-size:0.75rem;color:#999;text-transform:capitalize;">${ngo.type} • ${ngo.city}</span>
+                          </div>
+                        </div>`;
+                    }).join('');
+                  }
+                }).catch(() => {});
+            }
+          }
+        })
+        .catch(err => console.error("Error fetching donation:", err));
+    }
+  </script>
+
+  @if(session()->has('donor'))
+  <script>
+    if (!sessionStorage.getItem('resqmeal_user')) {
+      const serverDonor = {!! json_encode(session('donor')) !!};
+      const formattedDonor = {
+          id: serverDonor.id,
+          email: serverDonor.email,
+          name: serverDonor.first_name,
+          last: serverDonor.last_name,
+          phone: serverDonor.phone,
+          city: serverDonor.city,
+          donorType: serverDonor.donor_type,
+          org: serverDonor.organisation,
+      };
+      sessionStorage.setItem('resqmeal_user', JSON.stringify(formattedDonor));
+    }
+  </script>
+  @endif
+
+  <script>
     /* ─── AUTH GUARD ────────────────────────────────── */
     const user = JSON.parse(sessionStorage.getItem('resqmeal_user') || 'null');
     const guard = document.getElementById('authGuard');
@@ -639,13 +795,58 @@
       document.getElementById('dpName').textContent = user.name || user.email.split('@')[0];
       document.getElementById('dpAvatar').textContent = (user.name || user.email)[0].toUpperCase();
       document.getElementById('sidebarName').textContent = (user.name || 'Your') + "'s Trust Score";
+
+      // Fetch dynamic trust score
+      if (user.id) {
+        fetch(`/api/donor/trust-score?donor_id=${user.id}`)
+          .then(res => res.json())
+          .then(data => {
+            if (data.success) {
+              const score = data.trust_score;
+              document.getElementById('trustScoreVal').textContent = score;
+              document.getElementById('trustScoreMeta').textContent = `Based on ${data.total_donations} past ${data.total_donations === 1 ? 'donation' : 'donations'}`;
+
+              // Update SVG circle ring matching score
+              const circle = document.getElementById('trustCircle');
+              if (circle) {
+                const circumference = 2 * Math.PI * 24; // ~150.8
+                const strokeLength = (score / 100) * circumference;
+                const gapLength = circumference - strokeLength;
+                circle.setAttribute('stroke-dasharray', `${strokeLength} ${gapLength}`);
+                circle.setAttribute('stroke-dashoffset', '0');
+              }
+            }
+          })
+          .catch(err => console.error("Error fetching trust score:", err));
+      }
     }
 
     /* ─── LOGOUT ────────────────────────────────────── */
     document.getElementById('logoutBtn').addEventListener('click', () => {
       sessionStorage.removeItem('resqmeal_user');
-      window.location.href = '/';
+      window.location.href = '/donor-logout';
     });
+
+    /* ─── REQUEST BADGE NOTIFICATION ────────────────── */
+    if (user && user.id) {
+      fetch(`/api/donor/requests?donor_id=${user.id}`)
+        .then(r => r.json())
+        .then(data => {
+          if(data.success) {
+            const total = data.requests.length;
+            const pending = data.requests.filter(r => r.status === 'pending').length;
+            const lastSeenTotal = parseInt(localStorage.getItem('last_seen_req_total') || '0');
+            
+            if(pending > 0 && total > lastSeenTotal) {
+              const badge = document.getElementById('reqBadge');
+              if(badge) {
+                badge.textContent = pending;
+                badge.style.display = 'inline-block';
+              }
+            }
+          }
+        }).catch(err => console.error(err));
+    }
 
     /* ─── STEP NAVIGATION ───────────────────────────── */
     let currentStep = 1;
@@ -668,15 +869,31 @@
       if (n === 4) buildPreview();
     }
 
-    document.querySelectorAll('.btn-next').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const next = parseInt(btn.dataset.next);
-        if (validateStep(currentStep)) goToStep(next);
+    // Event listeners are bound inside bindStepNavigation()
+    function bindStepNavigation() {
+      document.querySelectorAll('.btn-next[data-next]').forEach(btn => {
+        btn.addEventListener('click', event => {
+          event.preventDefault();
+          const next = Number(btn.dataset.next);
+          if (!Number.isInteger(next) || next < 1 || next > totalSteps) return;
+          if (validateStep(currentStep)) goToStep(next);
+        });
       });
-    });
-    document.querySelectorAll('.btn-back').forEach(btn => {
-      btn.addEventListener('click', () => goToStep(parseInt(btn.dataset.prev)));
-    });
+
+      document.querySelectorAll('.btn-back[data-prev]').forEach(btn => {
+        btn.addEventListener('click', event => {
+          event.preventDefault();
+          const prev = Number(btn.dataset.prev);
+          if (Number.isInteger(prev)) goToStep(prev);
+        });
+      });
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', bindStepNavigation);
+    } else {
+      bindStepNavigation();
+    }
 
     /* ─── VALIDATION ────────────────────────────────── */
     function setErr(id, msg) {
@@ -911,38 +1128,61 @@
       btn.querySelector('.btn-spinner').hidden = false;
       btn.disabled = true;
 
-      // Retrieve values
-      const payload = {
-        _token: document.querySelector('input[name="_token"]').value,
-        food_name: document.getElementById('food-name').value,
-        category: document.querySelector('input[name="food-cat"]:checked')?.value || '',
-        quantity: document.getElementById('food-qty').value,
-        unit: document.getElementById('food-unit').value,
-        serves: document.getElementById('food-serves').value,
-        expiry: document.getElementById('food-expiry').value,
-        pickup_from: document.getElementById('pickup-from').value,
-        pickup_to: document.getElementById('pickup-to').value,
-        pickup_address: document.getElementById('pickup-address').value,
-        pickup_contact: document.getElementById('pickup-contact').value,
-        storage: document.querySelector('input[name="storage"]:checked')?.value || '',
-        packaging: document.querySelector('input[name="packaging"]:checked')?.value || '',
-        notes: document.getElementById('safety-notes').value,
-        visibility: document.querySelector('input[name="visibility"]:checked')?.value || 'all',
-        emergency: document.getElementById('emergencyFlag').checked,
-        allergens: [...document.querySelectorAll('#step-3 .dietary-flags input[type="checkbox"]:checked')].map(i => i.value),
-        dietary: [...document.querySelectorAll('#step-1 .dietary-flags input[type="checkbox"]:checked')].map(i => i.value),
-        donor_name: user ? (user.name || user.email.split('@')[0]) : 'Donor'
-      };
+      // Use FormData to support file uploads
+      const formData = new FormData();
+      formData.append('_token', document.querySelector('input[name="_token"]').value);
+      formData.append('food_name', document.getElementById('food-name').value);
+      formData.append('category', document.querySelector('input[name="food-cat"]:checked')?.value || '');
+      formData.append('quantity', document.getElementById('food-qty').value);
+      formData.append('unit', document.getElementById('food-unit').value);
+      formData.append('serves', document.getElementById('food-serves').value);
+      formData.append('expiry', document.getElementById('food-expiry').value);
+      formData.append('pickup_from', document.getElementById('pickup-from').value);
+      formData.append('pickup_to', document.getElementById('pickup-to').value);
+      formData.append('pickup_address', document.getElementById('pickup-address').value);
+      formData.append('pickup_contact', document.getElementById('pickup-contact').value);
+      formData.append('storage', document.querySelector('input[name="storage"]:checked')?.value || '');
+      formData.append('packaging', document.querySelector('input[name="packaging"]:checked')?.value || '');
+      formData.append('notes', document.getElementById('safety-notes').value);
+      formData.append('visibility', document.querySelector('input[name="visibility"]:checked')?.value || 'all');
+      formData.append('emergency', document.getElementById('emergencyFlag').checked ? 1 : 0);
+      
+      const allergens = [...document.querySelectorAll('#step-3 .dietary-flags input[type="checkbox"]:checked')].map(i => i.value);
+      allergens.forEach(val => formData.append('allergens[]', val));
+      
+      const dietary = [...document.querySelectorAll('#step-1 .dietary-flags input[type="checkbox"]:checked')].map(i => i.value);
+      dietary.forEach(val => formData.append('dietary[]', val));
+      
+      formData.append('donor_name', user ? (user.name || user.email.split('@')[0]) : 'Donor');
+      if (user && user.id) formData.append('donor_id', user.id);
+      if (user) formData.append('donor_email', user.email);
 
-      fetch('/donate', {
+      // Append Photo if present
+      const photoInput = document.getElementById('photoInput');
+      if (photoInput.files && photoInput.files[0]) {
+          formData.append('photo', photoInput.files[0]);
+      }
+
+      const endpoint = editId ? `/api/donations/${editId}` : '/donate';
+      // For multipart/form-data, PHP needs POST method. We can spoof PUT with _method for updates
+      if (editId) {
+          formData.append('_method', 'PUT');
+      }
+
+      fetch(endpoint, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
           'Accept': 'application/json'
+          // Do NOT set Content-Type manually when sending FormData, the browser sets the correct boundary automatically
         },
-        body: JSON.stringify(payload)
+        body: formData
       })
-      .then(res => res.json())
+      .then(res => {
+        if (!res.ok) {
+          throw new Error(`Server returned status ${res.status}`);
+        }
+        return res.json();
+      })
       .then(data => {
         btn.querySelector('.btn-text').hidden   = false;
         btn.querySelector('.btn-spinner').hidden = true;
@@ -964,8 +1204,12 @@
       .catch(err => {
         btn.querySelector('.btn-text').hidden   = false;
         btn.querySelector('.btn-spinner').hidden = true;
-        btn.disabled = false;
-        setErr('final-decl-err', 'Failed to connect to server. Please try again.');
+        btn.disabled = false;        
+        let msg = 'Failed to connect to server. Please try again.';
+        if (err.message && err.message.includes('Server returned status')) {
+          msg = `Server Error: ${err.message}. Please check your server console or logs.`;
+        }
+        setErr('final-decl-err', msg);
       });
     });
   </script>
